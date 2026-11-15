@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import UIKit
 
 struct ScanView: View {
     @ObservedObject var store: ScanStore
@@ -21,6 +22,9 @@ struct ScanView: View {
                     CameraScannerView { store.add($0) }
                         .frame(height: 240)
                         .background(.black)
+                        // Bildschirm bleibt während des Scannens an
+                        .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
+                        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
                 }
 
                 if let notice = store.notice {
