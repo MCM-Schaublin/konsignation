@@ -62,10 +62,10 @@ enum PDFExport {
             func header() {
                 text("Konsignationsabgleich · \(standort) · \(datum)", L, 8, size: 8, color: grey)
                 if let logo {
-                    let w = mm(28), h = mm(28) * logo.size.height / logo.size.width
-                    logo.draw(in: CGRect(x: mm(210 - 15 - 28), y: mm(3), width: w, height: h))
+                    let w = mm(56), h = mm(56) * logo.size.height / logo.size.width
+                    logo.draw(in: CGRect(x: mm(210 - 15 - 56), y: mm(3), width: w, height: h))
                 }
-                y = 16
+                y = 27   // Platz für das Logo oben rechts
             }
 
             func newPage() {
