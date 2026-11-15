@@ -1,0 +1,69 @@
+name: MCMKonsignation
+options:
+  bundleIdPrefix: ch.mcmschaublin
+  deploymentTarget:
+    iOS: "17.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""
+targets:
+  MCMKonsignation:
+    type: application
+    platform: iOS
+    sources:
+      - path: MCMKonsignation/Sources
+      - path: MCMKonsignation/Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ch.mcmschaublin.konsignation
+        PRODUCT_NAME: MCM-Konsignation
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: MCM-Konsignation
+        INFOPLIST_KEY_NSCameraUsageDescription: "Die Kamera wird benötigt, um GS1-Barcodes der Konsignationsartikel zu scannen."
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIRequiresFullScreen: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    entitlements:
+      path: MCMKonsignation/MCMKonsignation.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.ch.mcmschaublin.konsignation
+    dependencies:
+      - target: MCMShare
+  MCMShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: MCMShare
+    info:
+      path: MCMShare/Info.plist
+      properties:
+        CFBundleDisplayName: MCM-Konsignation
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.ui-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionJavaScriptPreprocessingFile: Action
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsFileWithMaxCount: 1
+              NSExtensionActivationSupportsImageWithMaxCount: 1
+              NSExtensionActivationSupportsWebPageWithMaxCount: 1
+    entitlements:
+      path: MCMShare/MCMShare.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.ch.mcmschaublin.konsignation
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ch.mcmschaublin.konsignation.share
+        PRODUCT_NAME: MCMShare
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: NO
