@@ -55,8 +55,16 @@ enum PDFExport {
 
             var y: CGFloat = 16
 
+            // MCM-Schaublin-Logo oben rechts auf jeder Seite
+            let logo: UIImage? = Bundle.main.url(forResource: "mcm_logo", withExtension: "png")
+                .flatMap { UIImage(contentsOfFile: $0.path) }
+
             func header() {
                 text("Konsignationsabgleich · \(standort) · \(datum)", L, 8, size: 8, color: grey)
+                if let logo {
+                    let w = mm(28), h = mm(28) * logo.size.height / logo.size.width
+                    logo.draw(in: CGRect(x: mm(210 - 15 - 28), y: mm(3), width: w, height: h))
+                }
                 y = 16
             }
 
