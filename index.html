@@ -481,27 +481,56 @@ async function listCams() {
   if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
   camsListed = true;
 }
+/* Nur Data-Matrix (Getinge) und GS1-128 (iVascular) lesen, mit "Try harder" */
+let lastDecodeAt = 0, watchdog = null, camWanted = false;
+function camHints() {
+  const h = new Map();
+  h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.DATA_MATRIX, ZXing.BarcodeFormat.CODE_128]);
+  h.set(ZXing.DecodeHintType.TRY_HARDER, true);
+  return h;
+}
+async function startDecode() {
+  try { if (reader) reader.reset(); } catch (e) {}
+  reader = new ZXing.BrowserMultiFormatReader(camHints(), 150);
+  lastDecodeAt = Date.now();
+  const cb = (result) => { if (result) { lastDecodeAt = Date.now(); addScan(result.getText(), false); } };
+  const devId = $("camSel").value;
+  const video = devId
+    ? { deviceId: { exact: devId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+    : { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } };
+  video.advanced = [{ focusMode: "continuous" }];   // Autofokus, sofern das Gerät es kann
+  await reader.decodeFromConstraints({ video }, $("cam"), cb);
+}
+/* Hängt der Leser länger als 10 s ohne Ergebnis, wird er still neu gestartet */
+function startWatchdog() {
+  stopWatchdog();
+  watchdog = setInterval(async () => {
+    if (!camWanted) return;
+    if (Date.now() - lastDecodeAt > 10000) {
+      lastDecodeAt = Date.now();
+      try { await startDecode(); } catch (e) {}
+    }
+  }, 1000);
+}
+function stopWatchdog() { if (watchdog) { clearInterval(watchdog); watchdog = null; } }
 $("btnCam").addEventListener("click", async () => {
   initAudio();
   if (!window.ZXing) { alert("Scan-Bibliothek nicht geladen."); return; }
   if (!camsListed) await listCams();
   try {
-    reader = new ZXing.BrowserMultiFormatReader();
     $("cam").classList.add("on");
     $("btnCam").disabled = true; $("btnStop").disabled = false; $("camSel").disabled = true;
-    const cb = (result) => { if (result) addScan(result.getText(), false); };
-    const devId = $("camSel").value;
-    if (devId) {
-      await reader.decodeFromVideoDevice(devId, $("cam"), cb);
-    } else {
-      await reader.decodeFromConstraints({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } }, $("cam"), cb);
-    }
+    camWanted = true;
+    await startDecode();
+    startWatchdog();
   } catch (e) {
     alert("Kamera nicht verfügbar: " + e.message);
     stopCam();
   }
 });
 function stopCam() {
+  camWanted = false;
+  stopWatchdog();
   try { if (reader) reader.reset(); } catch (e) {}
   reader = null;
   $("cam").classList.remove("on");
