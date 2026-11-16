@@ -20,7 +20,7 @@ enum SollParser {
         var rows: [SollRow] = []
         var cur: Int? = nil
         var standort = ""
-        var curIsLN = false   // aktueller Block stammt aus dem Artikelbestand (LN-Format)
+        var curIsCharge = false   // LN-PAK-Artikel: Serie/Charge-Wert ist eine Charge, keine SN
 
         let lines = text.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -31,7 +31,7 @@ enum SollParser {
             if let tb = parseTableLine(l, standort: standort) {
                 rows.append(tb)
                 cur = rows.count - 1
-                curIsLN = false
+                curIsCharge = false
                 continue
             }
             if standort.isEmpty, let m = l.firstMatch(#"Standort:\s*(.+)$"#) {
@@ -39,19 +39,24 @@ enum SollParser {
                 continue
             }
             // Blockformat: Artikelzeile, dann Serie/Charge, MHD, Bestand
-            // LN-Zeilen stammen aus dem Artikelbestand: die interne LN-Kennung entfällt, Menge ist immer 1
+            // LN-Zeilen stammen aus dem Artikelbestand: die interne LN-Kennung entfällt.
+            // LN-PAK-Artikel führen Chargen (können bei mehreren Stück gleich sein), übrige LN-Artikel Seriennummern.
             if let m = l.firstMatch(#"^(GET|IVAS|LN)-(\S+)\s*-\s*(.*)$"#) {
                 rows.append(SollRow(standort: standort, art: artKey(m[1], m[2]), bez: m[3],
                                     sn: nil, charge: nil, qty: 1, mhd: ""))
                 cur = rows.count - 1
-                curIsLN = m[1].uppercased() == "LN"
+                curIsCharge = m[1].uppercased() == "LN" && m[2].uppercased().hasPrefix("PAK")
                 continue
             }
             guard let i = cur else { continue }
             if let m = l.firstMatch(#"^Bestand:\s*(\d+)"#) {
-                if !curIsLN { rows[i].qty = Int(m[1]) ?? rows[i].qty }
+                rows[i].qty = Int(m[1]) ?? rows[i].qty
             } else if let m = l.firstMatch(#"^Serie/Charge:\s*(.*)$"#) {
-                applySerie(m[1], to: &rows[i])
+                if curIsCharge {
+                    rows[i].charge = m[1].replacingOccurrences(of: " ", with: "").trimmingCharacters(in: .whitespaces)
+                } else {
+                    applySerie(m[1], to: &rows[i])
+                }
             } else if let m = l.firstMatch(#"^MHD:\s*(.*)$"#) {
                 rows[i].mhd = m[1].trimmingCharacters(in: .whitespaces)
             }
