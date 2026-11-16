@@ -36,6 +36,8 @@ struct SignatureSheet: View {
             }
             .navigationTitle("Unterschriften")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear { OrientationLock.set(.allButUpsideDown) }     // quer, damit das Feld grösser ist
+            .onDisappear { OrientationLock.set(.portrait) }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Schließen") { dismiss() }
