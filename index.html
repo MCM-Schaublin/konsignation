@@ -485,11 +485,14 @@ async function listCams() {
   if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
   camsListed = true;
 }
-/* Nur Data-Matrix (Getinge) und GS1-128 (iVascular) lesen, mit "Try harder" */
+/* Dieselben Formate wie in der iOS-App (Data-Matrix, GS1-128, EAN, QR, PDF417), mit "Try harder" */
 let lastDecodeAt = 0, watchdog = null, camWanted = false;
 function camHints() {
   const h = new Map();
-  h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.DATA_MATRIX, ZXing.BarcodeFormat.CODE_128]);
+  h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+    ZXing.BarcodeFormat.DATA_MATRIX, ZXing.BarcodeFormat.CODE_128,
+    ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
+    ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.PDF_417]);
   h.set(ZXing.DecodeHintType.TRY_HARDER, true);
   return h;
 }
