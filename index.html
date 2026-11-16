@@ -159,13 +159,16 @@ function parseSollText(text) {
     if (!standort && !/GET-|IVAS-/.test(l) && /(Spital|Klinik|Universit|Hospital)/i.test(l) && l.length < 60) {
       standort = l.replace(/\s+/g, " ").trim();   // Tabellenformat ohne K-Code: Kundenname als Standort
     }
-    const art = l.match(/^(GET|IVAS)-(\S+)\s*-\s*(.*)$/i);
+    // LN-Zeilen stammen aus dem Artikelbestand: die interne LN-Kennung entfällt.
+    // LN-PAK und LN-0218TS führen Chargen (können bei mehreren Stück gleich sein), übrige LN-Artikel Seriennummern.
+    const art = l.match(/^(GET|IVAS|LN)-(\S+)\s*-\s*(.*)$/i);
     if (art) {
       const prefix = art[1].toUpperCase();
       let code = art[2];
       if (prefix === "GET") code = code.replace(/O/g, "0");
-      const full = prefix + "-" + code;
-      cur = { standort, ref: normRef(full), art: full, bez: art[3], sn: null, charge: null, qty: 1, mhd: null, mhdRaw: "", unklar: false };
+      const full = prefix === "LN" ? code : prefix + "-" + code;
+      const lotOnly = prefix === "LN" && /^(PAK|0218TS)/i.test(code);
+      cur = { standort, ref: normRef(full), art: full, bez: art[3], sn: null, charge: null, qty: 1, mhd: null, mhdRaw: "", unklar: false, chargeOnly: lotOnly };
       rows.push(cur);
       continue;
     }
@@ -180,7 +183,8 @@ function parseSollText(text) {
     } else if (/^Serie\/Charge/i.test(l)) {
       const v = l.split(":").slice(1).join(":").replace(/[\s\/]/g, "");
       let m;
-      if ((m = v.match(/^(\d{10})29010([0-9A-Za-z]{5})$/)))  { cur.sn = m[1]; cur.charge = m[2]; }  // Getinge: SN + 29010 + Charge
+      if (cur.chargeOnly) { cur.charge = v; }                                                       // LN-PAK / LN-0218TS: Charge
+      else if ((m = v.match(/^(\d{10})29010([0-9A-Za-z]{5})$/)))  { cur.sn = m[1]; cur.charge = m[2]; }  // Getinge: SN + 29010 + Charge
       else if ((m = v.match(/^(\d{10})([0-9A-Za-z]{5})$/)))  { cur.sn = m[1]; cur.charge = m[2]; }  // Getinge: SN + Charge
       else if ((m = v.match(/^(\d{10})$/)))                  { cur.sn = m[1]; }                      // Getinge: nur SN
       else if ((m = v.match(/^(\d{7})$/)))                   { cur.charge = m[1]; }                  // iVascular: Charge (7-stellig), Menge über Bestand
