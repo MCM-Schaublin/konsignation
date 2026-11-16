@@ -20,7 +20,7 @@ enum SollParser {
         var rows: [SollRow] = []
         var cur: Int? = nil
         var standort = ""
-        var curIsCharge = false   // LN-PAK-Artikel: Serie/Charge-Wert ist eine Charge, keine SN
+        var curIsCharge = false   // LN-Artikel mit Charge statt SN
 
         let lines = text.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -40,12 +40,14 @@ enum SollParser {
             }
             // Blockformat: Artikelzeile, dann Serie/Charge, MHD, Bestand
             // LN-Zeilen stammen aus dem Artikelbestand: die interne LN-Kennung entfällt.
-            // LN-PAK-Artikel führen Chargen (können bei mehreren Stück gleich sein), übrige LN-Artikel Seriennummern.
+            // LN-PAK und LN-0218TS führen Chargen (können bei mehreren Stück gleich sein), übrige LN-Artikel Seriennummern.
             if let m = l.firstMatch(#"^(GET|IVAS|LN)-(\S+)\s*-\s*(.*)$"#) {
                 rows.append(SollRow(standort: standort, art: artKey(m[1], m[2]), bez: m[3],
                                     sn: nil, charge: nil, qty: 1, mhd: ""))
                 cur = rows.count - 1
-                curIsCharge = m[1].uppercased() == "LN" && m[2].uppercased().hasPrefix("PAK")
+                // LN-PAK und LN-0218TS (Inflation Device) führen Chargen, übrige LN-Artikel Seriennummern
+                let lotArticles = ["PAK", "0218TS"]
+                curIsCharge = m[1].uppercased() == "LN" && lotArticles.contains { m[2].uppercased().hasPrefix($0) }
                 continue
             }
             guard let i = cur else { continue }
