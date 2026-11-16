@@ -20,6 +20,7 @@ enum SollParser {
         var rows: [SollRow] = []
         var cur: Int? = nil
         var standort = ""
+        var curIsLN = false   // aktueller Block stammt aus dem Artikelbestand (LN-Format)
 
         let lines = text.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -30,6 +31,7 @@ enum SollParser {
             if let tb = parseTableLine(l, standort: standort) {
                 rows.append(tb)
                 cur = rows.count - 1
+                curIsLN = false
                 continue
             }
             if standort.isEmpty, let m = l.firstMatch(#"Standort:\s*(.+)$"#) {
@@ -37,15 +39,17 @@ enum SollParser {
                 continue
             }
             // Blockformat: Artikelzeile, dann Serie/Charge, MHD, Bestand
-            if let m = l.firstMatch(#"^(GET|IVAS)-(\S+)\s*-\s*(.*)$"#) {
+            // LN-Zeilen stammen aus dem Artikelbestand: die interne LN-Kennung entfällt, Menge ist immer 1
+            if let m = l.firstMatch(#"^(GET|IVAS|LN)-(\S+)\s*-\s*(.*)$"#) {
                 rows.append(SollRow(standort: standort, art: artKey(m[1], m[2]), bez: m[3],
                                     sn: nil, charge: nil, qty: 1, mhd: ""))
                 cur = rows.count - 1
+                curIsLN = m[1].uppercased() == "LN"
                 continue
             }
             guard let i = cur else { continue }
             if let m = l.firstMatch(#"^Bestand:\s*(\d+)"#) {
-                rows[i].qty = Int(m[1]) ?? rows[i].qty
+                if !curIsLN { rows[i].qty = Int(m[1]) ?? rows[i].qty }
             } else if let m = l.firstMatch(#"^Serie/Charge:\s*(.*)$"#) {
                 applySerie(m[1], to: &rows[i])
             } else if let m = l.firstMatch(#"^MHD:\s*(.*)$"#) {
@@ -61,6 +65,7 @@ enum SollParser {
 
     private static func artKey(_ prefix: String, _ code: String) -> String {
         let p = prefix.uppercased()
+        if p == "LN" { return code }   // interne Lieferanten-Kennung, für die Kontrolle nicht nötig
         // Bei GET-Artikeln wird ein O im Code als Null gelesen
         let c = p == "GET" ? code.replacingOccurrences(of: "O", with: "0") : code
         return p + "-" + c
