@@ -44,6 +44,11 @@
   .sigbox { flex:1; min-width:260px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px; }
   .sigbox canvas { display:block; width:100%; aspect-ratio:3.5/1; height:auto; touch-action:none; background:#fff; border-bottom:1px dashed var(--line); }
   .sigbox .row { margin-top:6px; }
+  /* Querformat: Felder untereinander über die ganze Breite, dadurch deutlich grösser */
+  @media (orientation: landscape) {
+    .sigbox { flex:1 1 100%; }
+    .sigbox canvas { aspect-ratio:2.8/1; }
+  }
 .hdr-logo{height:26px;background:#fff;border-radius:4px;padding:3px 6px;vertical-align:middle;margin-right:10px}
 </style>
 </head>
