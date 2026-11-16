@@ -485,27 +485,45 @@ async function listCams() {
   if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
   camsListed = true;
 }
+/* Startet den Leser mit den Standard-Einstellungen (wie zuvor) */
+let lastDecodeAt = 0, watchdog = null;
+async function startCam() {
+  reader = new ZXing.BrowserMultiFormatReader();
+  lastDecodeAt = Date.now();
+  const cb = (result) => { if (result) { lastDecodeAt = Date.now(); addScan(result.getText(), false); } };
+  const devId = $("camSel").value;
+  if (devId) {
+    await reader.decodeFromVideoDevice(devId, $("cam"), cb);
+  } else {
+    await reader.decodeFromConstraints({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } }, $("cam"), cb);
+  }
+}
+/* Erkennt der Leser 6 s lang nichts, wird die Kamera still neu gestartet (ersetzt das Aus- und Einschalten von Hand) */
+async function restartIfStuck() {
+  if (!$("cam").classList.contains("on") || !reader) return;
+  if (Date.now() - lastDecodeAt < 6000) return;
+  lastDecodeAt = Date.now();
+  try { reader.reset(); } catch (e) {}
+  try { await startCam(); } catch (e) {}
+}
+function stopWatchdog() { if (watchdog) { clearInterval(watchdog); watchdog = null; } }
 $("btnCam").addEventListener("click", async () => {
   initAudio();
   if (!window.ZXing) { alert("Scan-Bibliothek nicht geladen."); return; }
   if (!camsListed) await listCams();
   try {
-    reader = new ZXing.BrowserMultiFormatReader();
     $("cam").classList.add("on");
     $("btnCam").disabled = true; $("btnStop").disabled = false; $("camSel").disabled = true;
-    const cb = (result) => { if (result) addScan(result.getText(), false); };
-    const devId = $("camSel").value;
-    if (devId) {
-      await reader.decodeFromVideoDevice(devId, $("cam"), cb);
-    } else {
-      await reader.decodeFromConstraints({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } }, $("cam"), cb);
-    }
+    await startCam();
+    stopWatchdog();
+    watchdog = setInterval(restartIfStuck, 1000);
   } catch (e) {
     alert("Kamera nicht verfügbar: " + e.message);
     stopCam();
   }
 });
 function stopCam() {
+  stopWatchdog();
   try { if (reader) reader.reset(); } catch (e) {}
   reader = null;
   $("cam").classList.remove("on");
