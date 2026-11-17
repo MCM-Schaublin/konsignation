@@ -35,4 +35,4 @@
 
 ## Tipps
 - Die Kamera braucht HTTPS. Die Seite muss also über die Web-Adresse geöffnet werden, nicht lokal.
-- Bei Problemen: Screenshot der Meldung und ein Foto des Etiketts an den Entwickler schicken.
+- Bei Problemen: Screenshot der Meldung und ein Foto des Etiketts an Markus Schmid schicken (markus.schmid@mcm-schaublin.ch).
