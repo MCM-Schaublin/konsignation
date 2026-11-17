@@ -30,9 +30,8 @@
    - Auf dem Handy quer halten, dann sind die Felder grösser.
    - Mit **Löschen** kann jedes Feld zurückgesetzt werden.
 2. **PDF für Unterschrift** drücken. Das PDF enthält das Logo, das Ergebnis und die Unterschriften.
-3. **CSV herunterladen** drücken, wenn die Datei für das Kundensystem gebraucht wird.
+3. **CSV herunterladen** drücken, um die Ergebnisse als Tabelle zu speichern.
 
 ## Tipps
 - Die Kamera braucht HTTPS. Die Seite muss also über die Web-Adresse geöffnet werden, nicht lokal.
-- Vor dem Abgleich alle Positionen scannen. Nach dem Abgleich kann man weiterscannen, muss dann aber erneut abgleichen.
-- Bei Problemen: Screenshot oder Foto des Etiketts und der Meldung an Markus schicken.
+- Bei Problemen: Screenshot der Meldung und ein Foto des Etiketts an den Entwickler schicken.
