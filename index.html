@@ -679,6 +679,14 @@ function buildPdf() {
     const cs = x.sn ? (x.sn + (x.charge ? " / " + x.charge : "")) : (x.charge || "–");
     newPageIfNeeded(9);
     doc.setTextColor(...color);
+    // MHD innerhalb der nächsten 6 Monate (ab heute): gelbes Warndreieck mit "!" vor der Artikelnummer
+    const soonLimit = new Date(); soonLimit.setMonth(soonLimit.getMonth() + 6);
+    if (x.mhd && dayOf(x.mhd) <= dayOf(soonLimit)) {
+      doc.setFillColor(255, 204, 0); doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3);
+      doc.triangle(9, y + 0.7, 13, y + 0.7, 11, y - 3.3, "FD");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(0, 0, 0);
+      doc.text("!", 11, y + 0.1, { align: "center" });
+    }
     doc.setFont("helvetica", "bold"); doc.text(String(x.art), cols.art, y);
     doc.setFont("helvetica", "normal");
     doc.text(cs, cols.cs, y);

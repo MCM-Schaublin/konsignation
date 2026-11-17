@@ -44,6 +44,22 @@ enum PDFExport {
                                      withAttributes: [.font: font, .foregroundColor: color])
             }
 
+            // Gelbes Warndreieck mit schwarzem Ausrufezeichen (x, y in mm, oben links)
+            func warningIcon(_ x: CGFloat, _ y: CGFloat) {
+                let s: CGFloat = 4
+                let p = UIBezierPath()
+                p.move(to: CGPoint(x: mm(x + s / 2), y: mm(y)))
+                p.addLine(to: CGPoint(x: mm(x + s), y: mm(y + s)))
+                p.addLine(to: CGPoint(x: mm(x), y: mm(y + s)))
+                p.close()
+                UIColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1).setFill()
+                p.fill()
+                UIColor.black.setStroke()
+                p.lineWidth = 0.3
+                p.stroke()
+                text("!", x + 1.5, y + 0.4, size: 8, bold: true)
+            }
+
             func line(_ x1: CGFloat, _ y1: CGFloat, _ x2: CGFloat, _ y2: CGFloat) {
                 let c = ctx.cgContext
                 c.setStrokeColor(black.cgColor)
@@ -106,6 +122,9 @@ enum PDFExport {
                 let isDev = devIds.contains(row.id)
                 let status = missing > 0 ? "FEHLT" : (isDev ? "ABWEICHUNG" : "vorhanden")
                 let color = missing > 0 ? red : (isDev ? orange : black)
+                // MHD innerhalb der nächsten 6 Monate (ab heute): Warnzeichen vor der Artikelnummer
+                let limit = Calendar.current.date(byAdding: .month, value: 6, to: Calendar.current.startOfDay(for: Date()))!
+                let expiringSoon = row.mhdDate.map { $0 <= limit } ?? false
                 var cs = row.charge ?? "–"
                 if let sn = row.sn {
                     cs = sn + (row.charge.map { " / " + $0 } ?? "")
@@ -116,6 +135,7 @@ enum PDFExport {
                     tableHead()
                 }
 
+                if expiringSoon { warningIcon(9, y - 0.3) }
                 text(row.art, cols["art"]!, y, bold: true, color: color)
                 text(cs, cols["cs"]!, y, color: color)
                 text(row.mhd.isEmpty ? "–" : row.mhd, cols["mhd"]!, y, color: color)
