@@ -58,14 +58,7 @@ enum Compare {
             } else if let ref = sc.ref {
                 // 1. Exakt: gleiche Artikelnummer und gleiche LOT, noch offen
                 found = rows.indices.first { rem[$0] > 0 && rows[$0].sn == nil && rows[$0].ref == ref && rows[$0].charge == sc.lot }
-                // 2. Charge-Abweichung nur, wenn diese LOT gar nicht auf der Liste steht.
-                //    Steht die LOT auf der Liste, ist ein Scan ohne offene Zeile zusätzlich, keine Abweichung.
-                if found == nil {
-                    let lotOnList = rows.contains { $0.sn == nil && $0.ref == ref && $0.charge == sc.lot }
-                    if !lotOnList {
-                        found = rows.indices.first { rem[$0] > 0 && rows[$0].sn == nil && rows[$0].ref == ref }
-                    }
-                }
+                // Andere LOT ist nie eine Abweichung: der Scan gilt als zusätzlich, die Listenzeile bleibt fehlend.
             }
 
             guard let m = found else {

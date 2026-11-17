@@ -561,11 +561,7 @@ function compare() {
     } else if (sc.ref) {
       // 1. Exakt: gleicher Artikel und gleiche Charge, noch offen
       m = soll.find(x => x.rem > 0 && !x.sn && x.ref === sc.ref && x.charge === sc.lot);
-      // 2. Charge-Abweichung nur, wenn diese Charge nicht auf der Liste steht.
-      //    Steht sie auf der Liste, ist der Scan ohne offene Zeile "zusätzlich", nicht "andere Charge".
-      if (!m && !soll.some(x => !x.sn && x.ref === sc.ref && x.charge === sc.lot)) {
-        m = soll.find(x => x.rem > 0 && !x.sn && x.ref === sc.ref);
-      }
+      // Andere Charge ist nie eine Abweichung: der Scan gilt als "zusätzlich", die Listenzeile bleibt "fehlt".
     }
     if (!m) { R.zus.push(sc); continue; }
     m.rem--; m.matched = true;

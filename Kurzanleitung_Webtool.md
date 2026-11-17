@@ -21,9 +21,10 @@
 2. Die Positionen werden so angezeigt:
    - **vorhanden**: Artikel stimmt mit der Soll-Liste überein.
    - **FEHLT**: Artikel steht auf der Soll-Liste, wurde aber nicht gescannt.
-   - **ABWEICHUNG**: Artikel ist da, aber eine Charge oder Seriennummer weicht ab.
+   - **ABWEICHUNG**: Nur bei abweichendem Ablaufdatum (MHD).
    - **ZUSÄTZLICH**: Artikel wurde gescannt, steht aber nicht auf der Liste.
-3. Bei gleicher Charge mit zu wenig Stück gilt das als **Fehlmenge** (FEHLT), nicht als Abweichung.
+3. Andere Charge oder Seriennummer ist nie eine Abweichung. Der Scan gilt als **zusätzlich**, und die Listenzeile gilt als **fehlt**.
+4. Bei gleicher Charge mit zu wenig Stück gilt das als **Fehlmenge** (FEHLT), nicht als Abweichung.
 
 ## 4 · Unterschrift und Ausgabe
 1. Unterschrift Kunde und Unterschrift MCM Schaublin AG mit Finger oder Stift ins Feld schreiben. Name und Datum eintragen.
