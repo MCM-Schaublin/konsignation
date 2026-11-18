@@ -18,7 +18,7 @@ targets:
       - path: MCMKonsignation/Resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: ch.mcmschaublin.konsignation
+        PRODUCT_BUNDLE_IDENTIFIER: ch.mcmschaublin.mcmkonsignation
         PRODUCT_NAME: MCM-Konsignation
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: YES
@@ -33,7 +33,7 @@ targets:
       path: MCMKonsignation/MCMKonsignation.entitlements
       properties:
         com.apple.security.application-groups:
-          - group.ch.mcmschaublin.konsignation
+          - group.ch.mcmschaublin.mcmkonsignation
     dependencies:
       - target: MCMShare
   MCMShare:
@@ -60,10 +60,10 @@ targets:
       path: MCMShare/MCMShare.entitlements
       properties:
         com.apple.security.application-groups:
-          - group.ch.mcmschaublin.konsignation
+          - group.ch.mcmschaublin.mcmkonsignation
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: ch.mcmschaublin.konsignation.share
+        PRODUCT_BUNDLE_IDENTIFIER: ch.mcmschaublin.mcmkonsignation.share
         PRODUCT_NAME: MCMShare
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: NO

@@ -2,7 +2,7 @@ import Foundation
 
 /// Gemeinsamer Ordner mit der Teilen-Erweiterung (App Group).
 enum Inbox {
-    static let groupID = "group.ch.mcmschaublin.konsignation"
+    static let groupID = "group.ch.mcmschaublin.mcmkonsignation"
 
     /// Gibt die nächste geteilte Datei zurück, falls eine wartet.
     static func takeNext() -> URL? {

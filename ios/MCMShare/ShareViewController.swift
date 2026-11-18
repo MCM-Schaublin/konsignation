@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 /// und legt es im gemeinsamen Ordner ab. Die App übernimmt die Datei über „Geteilte Datei übernehmen“.
 final class ShareViewController: UIViewController {
     private let label = UILabel()
-    private let groupID = "group.ch.mcmschaublin.konsignation"
+    private let groupID = "group.ch.mcmschaublin.mcmkonsignation"
 
     override func viewDidLoad() {
         super.viewDidLoad()

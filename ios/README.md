@@ -1,6 +1,6 @@
 # MCM-Konsignation (iOS / iPadOS)
 
-Native SwiftUI-App für iPhone und iPad. Bundle-ID: `ch.mcmschaublin.konsignation`.
+Native SwiftUI-App für iPhone und iPad. Bundle-ID: `ch.mcmschaublin.mcmkonsignation`.
 
 ## Projekt erzeugen (auf dem Mac)
 
