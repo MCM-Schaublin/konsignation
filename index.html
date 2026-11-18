@@ -536,11 +536,11 @@ function stopCam() {
 }
 $("btnStop").addEventListener("click", stopCam);
 
-/* ---------- Logo für PDF ---------- */
-let logoData = null;
-fetch("mcm_logo.png").then(r => r.blob())
-  .then(b => new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); }))
-  .then(d => { logoData = d; }).catch(() => {});
+/* ---------- Logo für PDF: dasselbe eingebettete Bild wie im Kopf der Seite (kein Nachladen nötig) ---------- */
+function pdfLogo() {
+  const img = document.querySelector('img[src^="data:image/png"]');
+  return img ? img.src : null;
+}
 
 /* ---------- Abgleich ---------- */
 let lastResult = null;
@@ -637,7 +637,8 @@ function buildPdf() {
   const header = () => {
     doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...COL.grey);
     doc.text("Konsignationsabgleich · " + stand + " · " + datum, L, 8);
-    if (logoData) doc.addImage(logoData, "PNG", 139, 3, 56, 56 * 467 / 1200);   // MCM-Logo oben rechts
+    const logo = pdfLogo();
+    if (logo) { try { doc.addImage(logo, "PNG", 139, 3, 56, 56 * 467 / 1200); } catch (e) { /* PDF ohne Logo statt Abbruch */ } }   // MCM-Logo oben rechts
     doc.setTextColor(...COL.black);
     y = 27;   // Platz für das Logo oben rechts
   };
