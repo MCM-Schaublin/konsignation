@@ -88,7 +88,7 @@
   <h2>3 · Ergebnis</h2>
   <div id="resSum"></div>
   <div id="resBody"></div>
-  <div class="row"><button class="primary" id="btnPdf">PDF für Unterschrift</button><button id="btnCsv">CSV herunterladen</button></div>
+  <div class="row"><button class="primary" id="btnPdf">PDF für Unterschrift</button><button id="btnCsv">CSV herunterladen</button><button id="btnReset">Alles zurücksetzen</button></div>
   <div class="mut" style="margin-top:10px">Unterschrift direkt auf dem Gerät: mit Finger oder Stift ins Feld schreiben. Die Unterschriften erscheinen dann im PDF.</div>
   <div class="sigwrap">
     <div class="sigbox"><div><b>Unterschrift Kunde</b></div><canvas id="sigKunde"></canvas><div class="row"><input type="text" id="nameKunde" placeholder="Name in Druckschrift" style="flex:1"><button id="clrKunde">Löschen</button></div>
@@ -328,6 +328,7 @@ $("btnOcr").addEventListener("click", async () => {
     $("hdrTitle").textContent = "Konsignationsabgleich" + (res.standort ? " · " + res.standort : "") + " · V 14.11. 22:35";
     document.title = "Konsignationsabgleich" + (res.standort ? " · " + res.standort : "");
     updateCompare();
+    saveState();
   } catch (e) {
     $("sollInfo").innerHTML = `<span class="err">Fehler: ${esc(e.message)}</span>`;
   }
@@ -456,6 +457,7 @@ function addScan(rawIn, manual) {
   if (!gtin && !p["21"] && !p["10"]) { sc.sn = raw; } // Klartext: Seriennummer
   scans.push(sc); lastRec = sc;
   renderScans();
+  saveState();
   if (!info) showBanner("unk", "Nicht im Katalog", `GTIN ${gtin || "–"}`);
   else showBanner("ok", "✓ " + sc.ref, `${sc.name} · Charge ${sc.lot || "–"} · SN ${sc.sn || "–"}`);
   feedback(!!info);
@@ -469,7 +471,7 @@ function renderScans() {
      <button style="float:right;padding:4px 8px" onclick="removeScan(${i})">×</button></div>`).join("");
   updateCompare();
 }
-window.removeScan = i => { scans.splice(i,1); renderScans(); };
+window.removeScan = i => { scans.splice(i,1); renderScans(); saveState(); };
 
 function updateCompare() { $("btnCompare").disabled = !(soll.length && scans.length); }
 
@@ -604,6 +606,7 @@ function lineFor(c, x) {
 
 function renderResult(R) {
   $("resSec").style.display = "block";
+  padKunde.fit(); padMcm.fit();                  // Unterschriftsfelder jetzt sichtbar: gespeicherte Unterschrift einzeichnen
   padKunde.fit(); padMcm.fit();
   const total = CATS.reduce((n, [k]) => n + R[k].length, 0);
   $("resSum").innerHTML = total === 0
@@ -740,19 +743,55 @@ function buildPdf() {
   doc.save(name);
 }
 
+/* ---------- Zwischenspeicher auf dem Gerät (überlebt Neuladen und Schliessen des Tabs) ---------- */
+const STATE_KEY = "konsignation-state-v1";
+function saveState() {
+  try {
+    const st = {
+      soll, scans,
+      sollInfo: $("sollInfo").innerHTML,
+      hdrTitle: $("hdrTitle").textContent,
+      docTitle: document.title,
+      names: { nameKunde: $("nameKunde").value, nameMcm: $("nameMcm").value, dateKunde: $("dateKunde").value, dateMcm: $("dateMcm").value },
+      sig: { Kunde: padKunde.png(), Mcm: padMcm.png() }
+    };
+    localStorage.setItem(STATE_KEY, JSON.stringify(st));
+  } catch (e) { /* Speicher voll oder gesperrt: Arbeit läuft weiter */ }
+}
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) return;
+    const st = JSON.parse(raw, (k, v) => (k === "mhd" || k === "exp") && typeof v === "string" ? new Date(v) : v);
+    soll = st.soll || []; scans = st.scans || [];
+    if (st.sollInfo) $("sollInfo").innerHTML = st.sollInfo;
+    if (st.hdrTitle) $("hdrTitle").textContent = st.hdrTitle;
+    if (st.docTitle) document.title = st.docTitle;
+    if (st.names) Object.entries(st.names).forEach(([id, v]) => { if (v) $(id).value = v; });
+    if (st.sig) { padKunde.load(st.sig.Kunde); padMcm.load(st.sig.Mcm); }
+    renderScans();
+    updateCompare();
+  } catch (e) { /* defekter Zwischenspeicher: leer starten */ }
+}
+$("btnReset").addEventListener("click", () => {
+  if (!confirm("Alle Daten dieser Sitzung löschen (Liste, Scans, Unterschriften)?")) return;
+  localStorage.removeItem(STATE_KEY);
+  location.reload();
+});
+
 /* ---------- Unterschriftsfelder (Finger / Stift / Maus) ---------- */
 function setupPad(id) {
   const c = $(id), ctx = c.getContext("2d");
-  let drawing = false, has = false, last = null;
+  let drawing = false, has = false, last = null, pendingPng = null;
   const fit = () => {
     const r = c.getBoundingClientRect();
     if (!r.width) return;                        // Abschnitt noch ausgeblendet
     const dpr = window.devicePixelRatio || 1;
-    const old = has ? c.toDataURL() : null;
+    const old = has ? c.toDataURL() : pendingPng;
     c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.lineWidth = 2.4; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#1d1d1b";
-    if (old) { const im = new Image(); im.onload = () => ctx.drawImage(im, 0, 0, r.width, r.height); im.src = old; }
+    if (old) { const im = new Image(); im.onload = () => { ctx.drawImage(im, 0, 0, r.width, r.height); has = true; pendingPng = null; }; im.src = old; }
   };
   const pos = (e) => { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
   c.addEventListener("pointerdown", (e) => { drawing = true; last = pos(e); c.setPointerCapture(e.pointerId); e.preventDefault(); });
@@ -761,24 +800,27 @@ function setupPad(id) {
     const p = pos(e); ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
     last = p; has = true; e.preventDefault();
   });
-  const end = () => { drawing = false; };
+  const end = () => { drawing = false; saveState(); };
   c.addEventListener("pointerup", end); c.addEventListener("pointercancel", end);
   window.addEventListener("resize", fit);
   fit();
   return {
     fit,
-    clear() { const r = c.getBoundingClientRect(); ctx.clearRect(0, 0, r.width, r.height); has = false; },
+    clear() { const r = c.getBoundingClientRect(); ctx.clearRect(0, 0, r.width, r.height); has = false; pendingPng = null; saveState(); },
+    load(png) { pendingPng = png || null; fit(); },
     has: () => has,
     png: () => has ? c.toDataURL("image/png") : null
   };
 }
 const padKunde = setupPad("sigKunde"), padMcm = setupPad("sigMcm");
+["nameKunde", "nameMcm", "dateKunde", "dateMcm"].forEach(id => $(id).addEventListener("input", saveState));
 (() => {
   const d = new Date(), t = [String(d.getDate()).padStart(2, "0"), String(d.getMonth() + 1).padStart(2, "0"), d.getFullYear()].join(".");
   $("dateKunde").value = t; $("dateMcm").value = t;
 })();
 $("clrKunde").addEventListener("click", () => padKunde.clear());
 $("clrMcm").addEventListener("click", () => padMcm.clear());
+loadState();
 
 $("btnPdf").addEventListener("click", () => {
   try { buildPdf(); }
