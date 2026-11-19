@@ -13,16 +13,21 @@ struct ScanRecord: Identifiable {
     let known: Bool
 }
 
+/// Hält den gerade laufenden Ton. Wird nur auf der toneQueue benutzt.
+private final class TonePlayerBox: @unchecked Sendable {
+    var player: AVAudioPlayer?
+}
+
+/// Töne werden auf einer eigenen Queue geladen und abgespielt, nicht auf dem Hauptthread (Xcode-Hinweis „AVAudioSession Hang Risk“).
+private let toneQueue = DispatchQueue(label: "ch.mcmschaublin.mcmkonsignation.audio")
+private let toneBox = TonePlayerBox()
+
 /// Sammelt die gescannten Codes in der Reihenfolge des Scans.
 @MainActor
 final class ScanStore: ObservableObject {
     @Published private(set) var records: [ScanRecord] = []
     @Published var notice: String?
 
-    /// Töne werden auf einer eigenen Queue geladen und abgespielt, nicht auf dem Hauptthread (Xcode-Hinweis „AVAudioSession Hang Risk“).
-    private static let audioQueue = DispatchQueue(label: "ch.mcmschaublin.mcmkonsignation.audio")
-    /// Nur auf der audioQueue verwenden.
-    private static var tonePlayer: AVAudioPlayer?
     private var lastRaw = ""
     private var lastAt = Date.distantPast
 
@@ -96,10 +101,10 @@ final class ScanStore: ObservableObject {
 
     /// Kurzer Ton: „scan_ok“ bei erfolgreichem Scan, „scan_fehler“ bei Fehlschlag.
     private func playTone(_ name: String) {
-        Self.audioQueue.async {
+        toneQueue.async {
             guard let url = Bundle.main.url(forResource: name, withExtension: "wav") else { return }
             let p = try? AVAudioPlayer(contentsOf: url)
-            Self.tonePlayer = p   // hält den Player, solange der Ton läuft
+            toneBox.player = p   // hält den Player, solange der Ton läuft
             p?.play()
         }
     }
