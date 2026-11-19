@@ -704,6 +704,7 @@ function buildPdf() {
       doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(0, 0, 0);
       doc.text("!", 11, y + 0.1, { align: "center" });
     }
+    doc.setTextColor(...color);   // Zeilenfarbe (rot/orange) nach dem Warnzeichen wiederherstellen
     doc.setFont("helvetica", "bold"); doc.text(String(x.art), cols.art, y);
     doc.setFont("helvetica", "normal");
     doc.text(cs, cols.cs, y);
