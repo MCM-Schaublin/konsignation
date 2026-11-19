@@ -11,6 +11,7 @@ struct ScanRecord: Identifiable {
     let lot: String?
     let exp: Date?
     let known: Bool
+    let at = Date()          // Zeitpunkt des Scans (wird nicht im Initialisierer gesetzt)
 }
 
 /// Hält den gerade laufenden Ton. Wird nur auf der toneQueue benutzt.
@@ -32,6 +33,7 @@ final class ScanStore: ObservableObject {
     private var lastAt = Date.distantPast
     private var lastPlainGtin: String?
     private var lastPlainAt = Date.distantPast
+    private var pendingSn: (sn: String, at: Date)?
 
     var lastRecord: ScanRecord? { records.last }
 
@@ -58,6 +60,27 @@ final class ScanStore: ObservableObject {
         // Corcym-Etiketten (Data Matrix) haben kein GS1-Format, sondern „SERIENNUMMER*ARTIKEL“, z. B. „A98503*PVF-L“
         let star: [String]? = gtin == nil ? raw.firstMatch(#"^([0-9A-Za-z]{4,})\*([0-9A-Za-z][0-9A-Za-z\-/]*)$"#) : nil
 
+        // Seriennummer-Code (unterer Strichcode, nur (17)(21), ohne Artikel): gehört zum Artikelcode davor oder danach
+        if !manual, gtin == nil, star == nil, let snOnly = p["21"] {
+            if let last = records.last, last.sn == snOnly {
+                notice = "Wiederholung, nicht gezählt."
+                return
+            }
+            if let last = records.last, last.gtin != nil, last.sn == nil, Date().timeIntervalSince(last.at) < 5 {
+                records[records.count - 1] = ScanRecord(
+                    raw: last.raw, gtin: last.gtin, ref: last.ref, name: last.name,
+                    sn: snOnly, lot: last.lot ?? p["10"], exp: last.exp ?? parseYYMMDD(p["17"] ?? ""),
+                    known: last.known)
+                notice = nil
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                playTone("scan_ok")
+                return
+            }
+            pendingSn = (sn: snOnly, at: Date())
+            notice = "Seriennummer erkannt. Jetzt den oberen Artikelcode scannen."
+            return
+        }
+
         // Kamera-Fremdcodes ohne GTIN (z. B. EAN auf der Verpackung) werden nicht gezählt.
         if !manual && gtin == nil && star == nil {
             notice = "Kein GS1-Code, nicht gezählt."
@@ -70,7 +93,12 @@ final class ScanStore: ObservableObject {
         let clean: (String) -> String = { $0.filter { $0.isASCII && ($0.isLetter || $0.isNumber) } }
         var sn = (p["21"] ?? star?[1]).map(clean)
         let lot = p["10"].map(clean)
-        if gtin == nil && star == nil && sn == nil && lot == nil { sn = raw }   // Klartext: Seriennummer
+        if gtin == nil && star == nil && sn == nil && lot == nil { sn = raw }
+        // Seriennummer, die vorher allein gelesen wurde (unterer Code zuerst): diesem Artikelcode zuordnen
+        if sn == nil, gtin != nil, let pend = pendingSn, Date().timeIntervalSince(pend.at) < 5 {
+            sn = pend.sn
+            pendingSn = nil
+        }   // Klartext: Seriennummer
 
         let ref: String? = info.map { normRef($0.ref) } ?? star.map { normRef($0[2]) }
 
