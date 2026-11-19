@@ -34,6 +34,8 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device) else { return }
 
+        configureFocus(device)
+
         session.beginConfiguration()
         if session.canAddInput(input) { session.addInput(input) }
 
@@ -50,6 +52,20 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
         layer.videoGravity = .resizeAspectFill
         view.layer.addSublayer(layer)
         previewLayer = layer
+    }
+
+    /// Kontinuierlicher Autofokus, damit die Kamera beim Bewegen des Handys nachstellt.
+    /// Die Einschränkung auf Nahbereich passt zu Etiketten, die nah vor der Kamera liegen.
+    private func configureFocus(_ device: AVCaptureDevice) {
+        do {
+            try device.lockForConfiguration()
+            if device.isFocusModeSupported(.continuousAutoFocus) { device.focusMode = .continuousAutoFocus }
+            if device.isAutoFocusRangeRestrictionSupported { device.autoFocusRangeRestriction = .near }
+            if device.isSmoothAutoFocusSupported { device.isSmoothAutoFocusEnabled = true }
+            device.unlockForConfiguration()
+        } catch {
+            // Fokus bleibt auf der Standardeinstellung, der Scan funktioniert trotzdem.
+        }
     }
 
     override func viewDidLayoutSubviews() {
