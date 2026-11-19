@@ -30,6 +30,8 @@ final class ScanStore: ObservableObject {
 
     private var lastRaw = ""
     private var lastAt = Date.distantPast
+    private var lastPlainGtin: String?
+    private var lastPlainAt = Date.distantPast
 
     var lastRecord: ScanRecord? { records.last }
 
@@ -77,6 +79,14 @@ final class ScanStore: ObservableObject {
             notice = "Zweiter Code desselben Stücks, nicht gezählt."
             return
         }
+
+        // Derselbe Artikelcode ohne SN innerhalb von 3 s: derselbe Code, nur anders gelesen
+        let plain = gtin != nil && p["21"] == nil
+        if !manual, plain, gtin == lastPlainGtin, Date().timeIntervalSince(lastPlainAt) < 3 {
+            notice = "Wiederholung, nicht gezählt."
+            return
+        }
+        if plain { lastPlainGtin = gtin; lastPlainAt = Date() }
 
         // Bicarbon/Slimline: Der obere Strichcode nennt nur den Artikel, der untere die Seriennummer.
         // Direkt aufeinanderfolgende Codes desselben Artikels mit und ohne SN bilden EIN Stück, die SN-Version gilt.
