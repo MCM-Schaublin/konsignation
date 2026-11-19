@@ -3,16 +3,16 @@ import AVFoundation
 
 /// Kamera-Ansicht, die Barcodes und DataMatrix-Codes erkennt (GS1-Etiketten).
 struct CameraScannerView: UIViewControllerRepresentable {
-    var onCode: (String) -> Void
+    var onCodes: ([String]) -> Void
 
     func makeUIViewController(context: Context) -> ScannerViewController {
         let vc = ScannerViewController()
-        vc.onCode = onCode
+        vc.onCodes = onCodes
         return vc
     }
 
     func updateUIViewController(_ vc: ScannerViewController, context: Context) {
-        vc.onCode = onCode
+        vc.onCodes = onCodes
     }
 }
 
@@ -30,7 +30,7 @@ fileprivate func setContinuousFocus(_ device: AVCaptureDevice) {
 }
 
 final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
-    var onCode: ((String) -> Void)?
+    var onCodes: (([String]) -> Void)?
 
     private let session = AVCaptureSession()
     private var previewLayer: AVCaptureVideoPreviewLayer?
@@ -94,12 +94,19 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
     func metadataOutput(_ output: AVCaptureMetadataOutput,
                         didOutput objects: [AVMetadataObject],
                         from connection: AVCaptureConnection) {
-        guard let obj = objects.first as? AVMetadataMachineReadableCodeObject,
-              let value = obj.stringValue else { return }
-        // Gleicher Code wird innerhalb von 1,5 Sekunden nur einmal gezählt.
-        if value == lastValue && Date().timeIntervalSince(lastTime) < 1.5 { return }
-        lastValue = value
+        // Alle Codes im Bild, ohne Doppel (z. B. drei gleiche Strichcodes auf einer Packung)
+        var values: [String] = []
+        for obj in objects {
+            if let v = (obj as? AVMetadataMachineReadableCodeObject)?.stringValue, !values.contains(v) {
+                values.append(v)
+            }
+        }
+        guard !values.isEmpty else { return }
+        // Gleiches Bild innerhalb von 1,5 Sekunden nur einmal weitergeben.
+        let key = values.sorted().joined(separator: "|")
+        if key == lastValue && Date().timeIntervalSince(lastTime) < 1.5 { return }
+        lastValue = key
         lastTime = Date()
-        onCode?(value)
+        onCodes?(values)
     }
 }

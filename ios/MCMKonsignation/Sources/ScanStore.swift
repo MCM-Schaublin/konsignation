@@ -37,6 +37,31 @@ final class ScanStore: ObservableObject {
 
     var lastRecord: ScanRecord? { records.last }
 
+    /// Alle Codes eines Kamerabilds. Artikelcode und Seriennummer-Code desselben Stücks werden zu EINEM Eintrag,
+    /// gleiche Codes im Bild zählen einmal.
+    func addFrame(_ raws: [String]) {
+        var parsed: [(raw: String, p: [String: String])] = []
+        for r in raws { parsed.append((raw: r, p: GS1.parse(r))) }
+        let gtinCodes = parsed.filter { $0.p["01"] != nil }
+        let snCodes = parsed.filter { $0.p["01"] == nil && $0.p["21"] != nil }
+        if gtinCodes.count == 1, let g = gtinCodes.first, let s = snCodes.first, let gtin = g.p["01"], let sn = s.p["21"] {
+            var combined = "(01)\(gtin)"
+            if let v = s.p["17"] ?? g.p["17"] { combined += "(17)\(v)" }
+            if let v = g.p["10"] ?? s.p["10"] { combined += "(10)\(v)" }
+            combined += "(21)\(sn)"
+            add(combined)
+            return
+        }
+        var seen = Set<String>()
+        for item in parsed {
+            if let g = item.p["01"] {
+                if seen.contains(g) { continue }
+                seen.insert(g)
+            }
+            add(item.raw)
+        }
+    }
+
     func add(_ rawIn: String, manual: Bool = false) {
         let raw = rawIn.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !raw.isEmpty else { return }

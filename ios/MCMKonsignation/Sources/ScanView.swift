@@ -19,7 +19,7 @@ struct ScanView: View {
                                            description: Text("Bitte in den Einstellungen den Kamera-Zugriff für MCM-Konsignation erlauben."))
                         .frame(height: 240)
                 } else {
-                    CameraScannerView { store.add($0) }
+                    CameraScannerView { store.addFrame($0) }
                         .frame(height: 240)
                         .background(.black)
                         // Bildschirm bleibt während des Scannens an
