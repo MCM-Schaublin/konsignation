@@ -459,7 +459,8 @@ function addScan(rawIn, manual) {
       return;
     }
     pendingSn = { sn: snv, lot: lotv, exp: parseYYMMDD(p["17"]), at: now };
-    showBanner("rep", snv ? "Seriennummer erkannt" : "Charge erkannt", "Jetzt den Artikelcode scannen.");
+    showBanner("ok", (snv ? "Seriennummer " + snv : "Charge " + lotv) + " erkannt", "Jetzt den Artikelcode scannen.");
+    feedback(true);  // Ton + grüner Rahmen, auch wenn die Meldung außerhalb des Bildes liegt
     return;
   }
   if (!manual && !gtin && !star) {
