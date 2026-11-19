@@ -449,7 +449,7 @@ function addScan(rawIn, manual) {
   }
   const info = gtin ? MAP[gtin] : null;
   const sc = {
-    raw, gtin,
+    raw, gtin, at: now,
     ref: info ? normRef(info.ref) : (star ? normRef(star[2]) : null),
     name: info ? info.name : (star ? star[2] : (gtin ? "(GTIN nicht in Katalog)" : "(kein GS1-Format)")),
     sn: p["21"] || (star ? star[1] : null),
@@ -465,6 +465,12 @@ function addScan(rawIn, manual) {
   const twin = sc.sn && scans.find(o => o.sn === sc.sn && o.ref === sc.ref && o.raw !== sc.raw);
   if (twin) {
     showBanner("rep", "Zweiter Code desselben Stücks – nicht gezählt", `${sc.ref || ""} · SN ${sc.sn}`);
+    return;
+  }
+  // Derselbe Artikelcode ohne SN kurz nach dem vorherigen (innerhalb 3 s): derselbe Code, nur anders gelesen
+  const prevAny = scans[scans.length - 1];
+  if (!manual && !sc.sn && sc.gtin && prevAny && prevAny.gtin === sc.gtin && !prevAny.sn && now - (prevAny.at || 0) < REPEAT_MS) {
+    showBanner("rep", "Wiederholung – nicht gezählt", `${sc.ref || ""} · gleicher Artikelcode`);
     return;
   }
   // Bicarbon/Slimline: Der obere Strichcode nennt nur den Artikel, der untere die Seriennummer.
