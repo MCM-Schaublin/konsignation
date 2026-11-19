@@ -78,6 +78,17 @@ final class ScanStore: ObservableObject {
             return
         }
 
+        // Bicarbon/Slimline: Der obere Strichcode nennt nur den Artikel, der untere die Seriennummer.
+        // Direkt aufeinanderfolgende Codes desselben Artikels mit und ohne SN bilden EIN Stück, die SN-Version gilt.
+        if let last = records.last, let g = gtin, last.gtin == g, last.ref == ref, (last.sn != nil) != (sn != nil) {
+            if sn != nil {
+                records.removeLast()          // erst Artikelcode, dann SN-Code: Artikelcode ersetzen
+            } else {
+                notice = "Artikelcode desselben Stücks, nicht gezählt."
+                return                        // erst SN-Code, dann Artikelcode: ignorieren
+            }
+        }
+
         let known = info != nil || star != nil
         let rec = ScanRecord(
             raw: raw, gtin: gtin,
