@@ -37,23 +37,11 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
     private var lastValue: String?
     private var lastTime = Date.distantPast
     private var device: AVCaptureDevice?
-    private let focusLabel = UILabel()
-    private var focusTimer: Timer?
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
         configure()
-        // Tippen auf das Bild setzt den Fokus auf die getippte Stelle
-        let tap = UITapGestureRecognizer(target: self, action: #selector(handleFocusTap(_:)))
-        view.addGestureRecognizer(tap)
-
-        // Anzeige für Fokus-Modus und Linsenposition (zum Testen)
-        focusLabel.font = .monospacedSystemFont(ofSize: 12, weight: .semibold)
-        focusLabel.textColor = .white
-        focusLabel.backgroundColor = UIColor.black.withAlphaComponent(0.6)
-        focusLabel.textAlignment = .center
-        view.addSubview(focusLabel)
     }
 
     private func configure() {
@@ -84,10 +72,6 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         previewLayer?.frame = view.bounds
-        let width: CGFloat = 280
-        focusLabel.frame = CGRect(x: (view.bounds.width - width) / 2,
-                                  y: view.safeAreaInsets.top + 8,
-                                  width: width, height: 24)
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -99,49 +83,12 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
             // Fokus nach dem Start noch einmal setzen, falls die Session ihn zurückgesetzt hat
             if let d { setContinuousFocus(d) }
         }
-        focusTimer?.invalidate()
-        focusTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            self?.updateFocusLabel()
-        }
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        focusTimer?.invalidate()
-        focusTimer = nil
         let s = session
         DispatchQueue.global(qos: .userInitiated).async { s.stopRunning() }
-    }
-
-    private func updateFocusLabel() {
-        guard let d = device else {
-            focusLabel.text = "Kamera nicht verfügbar"
-            return
-        }
-        let mode: String
-        switch d.focusMode {
-        case .locked: mode = "gesperrt"
-        case .autoFocus: mode = "einmalig"
-        case .continuousAutoFocus: mode = "kontinuierlich"
-        @unknown default: mode = "unbekannt"
-        }
-        focusLabel.text = "Fokus: \(mode) · Linse \(String(format: "%.2f", d.lensPosition))"
-    }
-
-    @objc private func handleFocusTap(_ gesture: UITapGestureRecognizer) {
-        guard let device, let previewLayer else { return }
-        let point = previewLayer.captureDevicePointConverted(fromLayerPoint: gesture.location(in: view))
-        do {
-            try device.lockForConfiguration()
-            if device.isFocusPointOfInterestSupported { device.focusPointOfInterest = point }
-            if device.isFocusModeSupported(.autoFocus) { device.focusMode = .autoFocus }
-            device.unlockForConfiguration()
-        } catch { return }
-        // Nach dem Antippen wieder auf kontinuierlichen Autofokus schalten
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            guard let self, let device = self.device else { return }
-            setContinuousFocus(device)
-        }
     }
 
     func metadataOutput(_ output: AVCaptureMetadataOutput,
