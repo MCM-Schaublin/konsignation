@@ -19,7 +19,10 @@ final class ScanStore: ObservableObject {
     @Published private(set) var records: [ScanRecord] = []
     @Published var notice: String?
 
-    private var player: AVAudioPlayer?
+    /// Töne werden auf einer eigenen Queue geladen und abgespielt, nicht auf dem Hauptthread (Xcode-Hinweis „AVAudioSession Hang Risk“).
+    private static let audioQueue = DispatchQueue(label: "ch.mcmschaublin.mcmkonsignation.audio")
+    /// Nur auf der audioQueue verwenden.
+    private static var tonePlayer: AVAudioPlayer?
     private var lastRaw = ""
     private var lastAt = Date.distantPast
 
@@ -93,9 +96,12 @@ final class ScanStore: ObservableObject {
 
     /// Kurzer Ton: „scan_ok“ bei erfolgreichem Scan, „scan_fehler“ bei Fehlschlag.
     private func playTone(_ name: String) {
-        guard let url = Bundle.main.url(forResource: name, withExtension: "wav") else { return }
-        player = try? AVAudioPlayer(contentsOf: url)
-        player?.play()
+        Self.audioQueue.async {
+            guard let url = Bundle.main.url(forResource: name, withExtension: "wav") else { return }
+            let p = try? AVAudioPlayer(contentsOf: url)
+            Self.tonePlayer = p   // hält den Player, solange der Ton läuft
+            p?.play()
+        }
     }
 
     func plusOneLast() {
