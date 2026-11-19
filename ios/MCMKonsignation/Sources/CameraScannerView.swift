@@ -23,17 +23,22 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var lastValue: String?
     private var lastTime = Date.distantPast
+    private var device: AVCaptureDevice?
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
         configure()
+        // Tippen auf das Bild setzt den Fokus auf die getippte Stelle
+        let tap = UITapGestureRecognizer(target: self, action: #selector(handleFocusTap(_:)))
+        view.addGestureRecognizer(tap)
     }
 
     private func configure() {
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device) else { return }
 
+        self.device = device
         configureFocus(device)
 
         session.beginConfiguration()
@@ -54,17 +59,38 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
         previewLayer = layer
     }
 
-    /// Kontinuierlicher Autofokus, damit die Kamera beim Bewegen des Handys nachstellt.
-    /// Die Einschränkung auf Nahbereich passt zu Etiketten, die nah vor der Kamera liegen.
+    /// Kontinuierlicher Autofokus über den gesamten Bereich (Nahbereich bis Ferne), damit die Kamera
+    /// beim Bewegen des Handys nachstellt. Kleine DataMatrix-Codes brauchen oft den Nahbereich,
+    /// deshalb wird der Fokus zusätzlich per Tippen auf das Bild gesetzt.
     private func configureFocus(_ device: AVCaptureDevice) {
         do {
             try device.lockForConfiguration()
             if device.isFocusModeSupported(.continuousAutoFocus) { device.focusMode = .continuousAutoFocus }
-            if device.isAutoFocusRangeRestrictionSupported { device.autoFocusRangeRestriction = .near }
+            if device.isAutoFocusRangeRestrictionSupported { device.autoFocusRangeRestriction = .none }
             if device.isSmoothAutoFocusSupported { device.isSmoothAutoFocusEnabled = true }
             device.unlockForConfiguration()
         } catch {
             // Fokus bleibt auf der Standardeinstellung, der Scan funktioniert trotzdem.
+        }
+    }
+
+    @objc private func handleFocusTap(_ gesture: UITapGestureRecognizer) {
+        guard let device, let previewLayer else { return }
+        let point = previewLayer.captureDevicePointConverted(fromLayerPoint: gesture.location(in: view))
+        do {
+            try device.lockForConfiguration()
+            if device.isFocusPointOfInterestSupported { device.focusPointOfInterest = point }
+            if device.isFocusModeSupported(.autoFocus) { device.focusMode = .autoFocus }
+            device.unlockForConfiguration()
+        } catch { return }
+        // Nach dem Antippen wieder auf kontinuierlichen Autofokus schalten
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            guard let self, let device = self.device else { return }
+            do {
+                try device.lockForConfiguration()
+                if device.isFocusModeSupported(.continuousAutoFocus) { device.focusMode = .continuousAutoFocus }
+                device.unlockForConfiguration()
+            } catch {}
         }
     }
 
