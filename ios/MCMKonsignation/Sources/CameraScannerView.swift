@@ -16,6 +16,19 @@ struct CameraScannerView: UIViewControllerRepresentable {
     }
 }
 
+/// Setzt kontinuierlichen Autofokus über den gesamten Bereich.
+fileprivate func setContinuousFocus(_ device: AVCaptureDevice) {
+    do {
+        try device.lockForConfiguration()
+        if device.isFocusModeSupported(.continuousAutoFocus) { device.focusMode = .continuousAutoFocus }
+        if device.isAutoFocusRangeRestrictionSupported { device.autoFocusRangeRestriction = .none }
+        if device.isSmoothAutoFocusSupported { device.isSmoothAutoFocusEnabled = true }
+        device.unlockForConfiguration()
+    } catch {
+        // Fokus bleibt auf der Standardeinstellung, der Scan funktioniert trotzdem.
+    }
+}
+
 final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
     var onCode: ((String) -> Void)?
 
@@ -24,6 +37,8 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
     private var lastValue: String?
     private var lastTime = Date.distantPast
     private var device: AVCaptureDevice?
+    private let focusLabel = UILabel()
+    private var focusTimer: Timer?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -32,6 +47,13 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
         // Tippen auf das Bild setzt den Fokus auf die getippte Stelle
         let tap = UITapGestureRecognizer(target: self, action: #selector(handleFocusTap(_:)))
         view.addGestureRecognizer(tap)
+
+        // Anzeige für Fokus-Modus und Linsenposition (zum Testen)
+        focusLabel.font = .monospacedSystemFont(ofSize: 12, weight: .semibold)
+        focusLabel.textColor = .white
+        focusLabel.backgroundColor = UIColor.black.withAlphaComponent(0.6)
+        focusLabel.textAlignment = .center
+        view.addSubview(focusLabel)
     }
 
     private func configure() {
@@ -39,7 +61,7 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
               let input = try? AVCaptureDeviceInput(device: device) else { return }
 
         self.device = device
-        configureFocus(device)
+        setContinuousFocus(device)
 
         session.beginConfiguration()
         if session.canAddInput(input) { session.addInput(input) }
@@ -59,19 +81,51 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
         previewLayer = layer
     }
 
-    /// Kontinuierlicher Autofokus über den gesamten Bereich (Nahbereich bis Ferne), damit die Kamera
-    /// beim Bewegen des Handys nachstellt. Kleine DataMatrix-Codes brauchen oft den Nahbereich,
-    /// deshalb wird der Fokus zusätzlich per Tippen auf das Bild gesetzt.
-    private func configureFocus(_ device: AVCaptureDevice) {
-        do {
-            try device.lockForConfiguration()
-            if device.isFocusModeSupported(.continuousAutoFocus) { device.focusMode = .continuousAutoFocus }
-            if device.isAutoFocusRangeRestrictionSupported { device.autoFocusRangeRestriction = .none }
-            if device.isSmoothAutoFocusSupported { device.isSmoothAutoFocusEnabled = true }
-            device.unlockForConfiguration()
-        } catch {
-            // Fokus bleibt auf der Standardeinstellung, der Scan funktioniert trotzdem.
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        previewLayer?.frame = view.bounds
+        let width: CGFloat = 280
+        focusLabel.frame = CGRect(x: (view.bounds.width - width) / 2,
+                                  y: view.safeAreaInsets.top + 8,
+                                  width: width, height: 24)
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        let s = session
+        let d = device
+        DispatchQueue.global(qos: .userInitiated).async {
+            s.startRunning()
+            // Fokus nach dem Start noch einmal setzen, falls die Session ihn zurückgesetzt hat
+            if let d { setContinuousFocus(d) }
         }
+        focusTimer?.invalidate()
+        focusTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            self?.updateFocusLabel()
+        }
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        focusTimer?.invalidate()
+        focusTimer = nil
+        let s = session
+        DispatchQueue.global(qos: .userInitiated).async { s.stopRunning() }
+    }
+
+    private func updateFocusLabel() {
+        guard let d = device else {
+            focusLabel.text = "Kamera nicht verfügbar"
+            return
+        }
+        let mode: String
+        switch d.focusMode {
+        case .locked: mode = "gesperrt"
+        case .autoFocus: mode = "einmalig"
+        case .continuousAutoFocus: mode = "kontinuierlich"
+        @unknown default: mode = "unbekannt"
+        }
+        focusLabel.text = "Fokus: \(mode) · Linse \(String(format: "%.2f", d.lensPosition))"
     }
 
     @objc private func handleFocusTap(_ gesture: UITapGestureRecognizer) {
@@ -86,29 +140,8 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
         // Nach dem Antippen wieder auf kontinuierlichen Autofokus schalten
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             guard let self, let device = self.device else { return }
-            do {
-                try device.lockForConfiguration()
-                if device.isFocusModeSupported(.continuousAutoFocus) { device.focusMode = .continuousAutoFocus }
-                device.unlockForConfiguration()
-            } catch {}
+            setContinuousFocus(device)
         }
-    }
-
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        previewLayer?.frame = view.bounds
-    }
-
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        let s = session
-        DispatchQueue.global(qos: .userInitiated).async { s.startRunning() }
-    }
-
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        let s = session
-        DispatchQueue.global(qos: .userInitiated).async { s.stopRunning() }
     }
 
     func metadataOutput(_ output: AVCaptureMetadataOutput,
