@@ -457,6 +457,9 @@ function addScan(rawIn, manual) {
     exp: parseYYMMDD(p["17"]),
   };
   if (!gtin && !star && !p["21"] && !p["10"]) { sc.sn = raw; } // Klartext: Seriennummer
+  // Steuerzeichen-Reste aus dem Data-Matrix-Code (z. B. ">") gehören nicht zur Seriennummer oder Charge
+  if (sc.sn) sc.sn = sc.sn.replace(/[^0-9A-Za-z]/g, "");
+  if (sc.lot) sc.lot = sc.lot.replace(/[^0-9A-Za-z]/g, "");
   // Zweiter Code desselben Stücks (z. B. Perceval: Strichcode auf der Seite, QR auf dem Deckel, gleiche SN):
   // nicht als Doppel zählen, sondern ignorieren.
   const twin = sc.sn && scans.find(o => o.sn === sc.sn && o.ref === sc.ref && o.raw !== sc.raw);
