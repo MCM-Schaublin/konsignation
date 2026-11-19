@@ -444,18 +444,22 @@ function addScan(rawIn, manual) {
   // Corcym-Etiketten (Data Matrix) haben kein GS1-Format, sondern "SERIENNUMMER*ARTIKEL", z. B. "A98503*PVF-L"
   const star = !gtin ? raw.match(/^([0-9A-Za-z]{4,})\*([0-9A-Za-z][0-9A-Za-z\-\/]*)$/) : null;
   // Seriennummer-Code (unterer Strichcode, nur (17)(21), ohne Artikel): gehört zum Artikelcode davor oder danach
-  if (!manual && !gtin && !star && p["21"]) {
+  if (!manual && !gtin && !star && (p["21"] || p["10"])) {
+    const snv = p["21"] || null, lotv = p["10"] || null;
     const prev = scans[scans.length - 1];
-    if (prev && prev.sn === p["21"]) { showBanner("rep", "Wiederholung – nicht gezählt", `SN ${p["21"]}`); return; }
-    if (prev && prev.gtin && !prev.sn && now - (prev.at || 0) < 5000) {
-      prev.sn = p["21"]; prev.lot = prev.lot || p["10"] || null; prev.exp = prev.exp || parseYYMMDD(p["17"]); prev.at = now;
+    if (prev && ((snv && prev.sn === snv) || (!snv && lotv && prev.lot === lotv && prev.gtin))) {
+      showBanner("rep", "Wiederholung – nicht gezählt", snv ? `SN ${snv}` : `Charge ${lotv}`); return;
+    }
+    if (prev && prev.gtin && (snv ? !prev.sn : !prev.lot) && now - (prev.at || 0) < 5000) {
+      if (snv) prev.sn = snv;
+      prev.lot = prev.lot || lotv; prev.exp = prev.exp || parseYYMMDD(p["17"]); prev.at = now;
       renderScans(); saveState();
-      showBanner("ok", "✓ " + prev.ref, `${prev.name} · Charge ${prev.lot || "–"} · SN ${prev.sn}`);
+      showBanner("ok", "✓ " + prev.ref, `${prev.name} · Charge ${prev.lot || "–"} · SN ${prev.sn || "–"}`);
       feedback(true);
       return;
     }
-    pendingSn = { sn: p["21"], lot: p["10"] || null, exp: parseYYMMDD(p["17"]), at: now };
-    showBanner("rep", "Seriennummer erkannt", "Jetzt den oberen Artikelcode scannen.");
+    pendingSn = { sn: snv, lot: lotv, exp: parseYYMMDD(p["17"]), at: now };
+    showBanner("rep", snv ? "Seriennummer erkannt" : "Charge erkannt", "Jetzt den Artikelcode scannen.");
     return;
   }
   if (!manual && !gtin && !star) {
