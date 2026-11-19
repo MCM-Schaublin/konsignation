@@ -112,7 +112,7 @@ const MAP = {"00384401010708":{"ref":"HEK06/120CPUT (1)","name":"HEK06/120CPUT (
 let soll = [];   // {standort, ref, art, bez, sn, charge, mhd(Date|null), mhdRaw}
 let scans = [];  // {raw, gtin, ref, name, sn, lot, exp(Date|null), dup}
 let reader = null;
-let lastRaw = "", lastAt = 0, lastRec = null;
+let lastRaw = "", lastAt = 0, lastRec = null, pendingSn = null;
 const REPEAT_MS = 3000;
 
 const $ = id => document.getElementById(id);
@@ -443,6 +443,21 @@ function addScan(rawIn, manual) {
   // Kamera-Codes ohne GTIN (01) sind keine Produktcodes. Der Code 10162682 (EAN-8) wurde sonst als Charge gelesen.
   // Corcym-Etiketten (Data Matrix) haben kein GS1-Format, sondern "SERIENNUMMER*ARTIKEL", z. B. "A98503*PVF-L"
   const star = !gtin ? raw.match(/^([0-9A-Za-z]{4,})\*([0-9A-Za-z][0-9A-Za-z\-\/]*)$/) : null;
+  // Seriennummer-Code (unterer Strichcode, nur (17)(21), ohne Artikel): gehört zum Artikelcode davor oder danach
+  if (!manual && !gtin && !star && p["21"]) {
+    const prev = scans[scans.length - 1];
+    if (prev && prev.sn === p["21"]) { showBanner("rep", "Wiederholung – nicht gezählt", `SN ${p["21"]}`); return; }
+    if (prev && prev.gtin && !prev.sn && now - (prev.at || 0) < 5000) {
+      prev.sn = p["21"]; prev.lot = prev.lot || p["10"] || null; prev.exp = prev.exp || parseYYMMDD(p["17"]); prev.at = now;
+      renderScans(); saveState();
+      showBanner("ok", "✓ " + prev.ref, `${prev.name} · Charge ${prev.lot || "–"} · SN ${prev.sn}`);
+      feedback(true);
+      return;
+    }
+    pendingSn = { sn: p["21"], lot: p["10"] || null, exp: parseYYMMDD(p["17"]), at: now };
+    showBanner("rep", "Seriennummer erkannt", "Jetzt den oberen Artikelcode scannen.");
+    return;
+  }
   if (!manual && !gtin && !star) {
     showBanner("rep", "Kein GS1-Code – nicht gezählt", raw.slice(0, 60));
     return;
@@ -466,6 +481,11 @@ function addScan(rawIn, manual) {
   if (twin) {
     showBanner("rep", "Zweiter Code desselben Stücks – nicht gezählt", `${sc.ref || ""} · SN ${sc.sn}`);
     return;
+  }
+  // Seriennummer, die vorher allein gelesen wurde (unterer Code zuerst): diesem Artikelcode zuordnen
+  if (pendingSn && now - pendingSn.at < 5000 && !sc.sn && sc.gtin) {
+    sc.sn = pendingSn.sn; sc.lot = sc.lot || pendingSn.lot; sc.exp = sc.exp || pendingSn.exp;
+    pendingSn = null;
   }
   // Derselbe Artikelcode ohne SN kurz nach dem vorherigen (innerhalb 3 s): derselbe Code, nur anders gelesen
   const prevAny = scans[scans.length - 1];
