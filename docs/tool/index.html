@@ -457,6 +457,13 @@ function addScan(rawIn, manual) {
     exp: parseYYMMDD(p["17"]),
   };
   if (!gtin && !star && !p["21"] && !p["10"]) { sc.sn = raw; } // Klartext: Seriennummer
+  // Zweiter Code desselben Stücks (z. B. Perceval: Strichcode auf der Seite, QR auf dem Deckel, gleiche SN):
+  // nicht als Doppel zählen, sondern ignorieren.
+  const twin = sc.sn && scans.find(o => o.sn === sc.sn && o.ref === sc.ref && o.raw !== sc.raw);
+  if (twin) {
+    showBanner("rep", "Zweiter Code desselben Stücks – nicht gezählt", `${sc.ref || ""} · SN ${sc.sn}`);
+    return;
+  }
   scans.push(sc); lastRec = sc;
   renderScans();
   saveState();
