@@ -467,6 +467,16 @@ function addScan(rawIn, manual) {
     showBanner("rep", "Zweiter Code desselben Stücks – nicht gezählt", `${sc.ref || ""} · SN ${sc.sn}`);
     return;
   }
+  // Bicarbon/Slimline: Der obere Strichcode nennt nur den Artikel, der untere die Seriennummer.
+  // Direkt aufeinanderfolgende Codes desselben Artikels mit und ohne SN bilden EIN Stück, die SN-Version gilt.
+  const last = scans[scans.length - 1];
+  if (last && last.gtin && last.gtin === sc.gtin && last.ref === sc.ref && !!last.sn !== !!sc.sn) {
+    if (sc.sn) { scans.pop(); }              // erst Artikelcode, dann SN-Code: Artikelcode ersetzen
+    else {                                   // erst SN-Code, dann Artikelcode: Artikelcode ignorieren
+      showBanner("rep", "Artikelcode desselben Stücks – nicht gezählt", `${sc.ref || ""}`);
+      return;
+    }
+  }
   scans.push(sc); lastRec = sc;
   renderScans();
   saveState();
