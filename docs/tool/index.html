@@ -59,7 +59,8 @@
 
 <section>
   <h2>1 · Soll-Liste (PDF oder Excel)</h2>
-  <input type="file" id="pdf" accept=".pdf,.xlsx,.xls,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+  <div class="row" style="align-items:center"><button type="button" id="btnPick" style="background:#eee;color:#111;border:1px solid var(--line);border-radius:8px;padding:8px 12px">Datei auswählen</button><span id="pdfName" class="mut">Keine Datei ausgewählt</span></div>
+  <input type="file" id="pdf" style="display:none" accept=".pdf,.xlsx,.xls,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
   <div class="row"><button class="primary" id="btnOcr">Liste einlesen</button></div>
   <div id="sollInfo" class="mut">Noch keine Liste geladen.</div>
   <div id="ocrProg" class="mut"></div>
@@ -133,6 +134,8 @@ const I18N = {
   "Name in Druckschrift": "Name in block letters",
   "Datum": "Date",
   "Noch keine Liste geladen.": "No list loaded yet.",
+  "Datei auswählen": "Choose file",
+  "Keine Datei ausgewählt": "No file selected",
   "Bitte zuerst eine PDF auswählen.": "Please select a PDF first.",
   "Die OCR-Bibliotheken sind nicht geladen. Bitte Internetverbindung prüfen und die Seite neu öffnen.": "The OCR libraries are not loaded. Please check the internet connection and reopen the page.",
   "Liste wird gelesen …": "Reading list …",
@@ -244,6 +247,8 @@ const I18N = {
   "Name in Druckschrift": "Nom en majuscules",
   "Datum": "Date",
   "Noch keine Liste geladen.": "Aucune liste chargée.",
+  "Datei auswählen": "Choisir un fichier",
+  "Keine Datei ausgewählt": "Aucun fichier sélectionné",
   "Bitte zuerst eine PDF auswählen.": "Veuillez d'abord choisir un PDF.",
   "Die OCR-Bibliotheken sind nicht geladen. Bitte Internetverbindung prüfen und die Seite neu öffnen.": "Les bibliothèques OCR ne sont pas chargées. Vérifiez la connexion Internet et rouvrez la page.",
   "Liste wird gelesen …": "Lecture de la liste …",
@@ -552,8 +557,10 @@ async function readPdfOcr(file) {
 
 function onPick() {
   const f = $("pdf").files[0];
+  $("pdfName").textContent = f ? f.name : T("Keine Datei ausgewählt");
   $("sollInfo").textContent = f ? T("Datei: {0} ({1} KB). Bitte „Liste einlesen“ drücken.", f.name, Math.round(f.size / 1024)) : T(T("Noch keine Liste geladen."));
 }
+$("btnPick").addEventListener("click", () => $("pdf").click());
 $("pdf").addEventListener("change", onPick);
 $("pdf").addEventListener("input", onPick);
 $("btnOcr").addEventListener("click", async () => {
